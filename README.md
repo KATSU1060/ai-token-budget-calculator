@@ -2,7 +2,7 @@
 
 自社の人数と給与を入れると、生成AIの年間利用料・人件費比・ROI・経費計上の下書きを作るツールです。すべての数字に根拠と区分（公式価格・公的統計・入力値・仮置き）を表示します。
 
-- デモ：https://（GitHub Pages のURLをここに記入）
+- デモ：https://katsu1060.github.io/ai-token-budget-calculator/
 - 背景と設計の考え方：（Wantedly ストーリーのURLをここに記入）
 
 ## できること
