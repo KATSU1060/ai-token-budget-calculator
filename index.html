@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; img-src data:; form-action 'none'; frame-src 'none'; object-src 'none'; media-src 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>AIトークン予算 試算ツール</title>
+<style>
+:root{
+  --paper:#F6F7F9; --sheet:#FFFFFF; --ink:#1E2A47; --ink-soft:#4A5573; --rule:#D5DAE3;
+  --seal:#B3261E; --seal-bg:#FBEDEC;
+  --t-official:#1F5FAF; --t-official-bg:#E7F0FB;
+  --t-stat:#2E6B4F; --t-stat-bg:#E6F2EC;
+  --t-input:#5B4A9E; --t-input-bg:#EEEBF8;
+  --t-assume:#8A5A00; --t-assume-bg:#FBF1DC;
+  --field:#FFFFFF; --field-border:#B9C1CF; --focus:#1F5FAF;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161F; --sheet:#1A1F2B; --ink:#E4E8F1; --ink-soft:#A9B2C6; --rule:#2E3545;
+    --seal:#F2867D; --seal-bg:#3A1F1F;
+    --t-official:#8DB8F0; --t-official-bg:#1C2B42;
+    --t-stat:#8CCBA9; --t-stat-bg:#1A3127;
+    --t-input:#B9AAF0; --t-input-bg:#2A2542;
+    --t-assume:#E9C26E; --t-assume-bg:#3A2E14;
+    --field:#121621; --field-border:#3D4659; --focus:#8DB8F0;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161F; --sheet:#1A1F2B; --ink:#E4E8F1; --ink-soft:#A9B2C6; --rule:#2E3545;
+  --seal:#F2867D; --seal-bg:#3A1F1F;
+  --t-official:#8DB8F0; --t-official-bg:#1C2B42;
+  --t-stat:#8CCBA9; --t-stat-bg:#1A3127;
+  --t-input:#B9AAF0; --t-input-bg:#2A2542;
+  --t-assume:#E9C26E; --t-assume-bg:#3A2E14;
+  --field:#121621; --field-border:#3D4659; --focus:#8DB8F0;
+  color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  font-size:15px;line-height:1.7}
+.mincho{font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","BIZ UDPMincho",serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+header.top{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:20px}
+header.top h1{font-size:1.6rem;line-height:1.3;margin:0 0 4px;font-weight:600;letter-spacing:.02em}
+header.top p{margin:0;color:var(--ink-soft);font-size:.9rem;max-width:60ch}
+.seal{flex:0 0 auto;width:92px;height:92px;border:2.5px solid var(--seal);border-radius:50%;color:var(--seal);background:var(--seal-bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.25;transform:rotate(-8deg)}
+.seal b{font-size:1.05rem;font-weight:700}
+.seal span{font-size:.62rem}
+.seal.pending{opacity:.55}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+.grid>div{min-width:0}
+@media (min-width:900px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)} .results{position:sticky;top:calc(12px + env(safe-area-inset-top,0px));align-self:start;max-height:calc(100vh - 24px);overflow:auto}}
+section.sheet{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:16px 16px 18px;margin-bottom:16px}
+section.sheet h2{font-size:1.1rem;margin:0 0 10px;font-weight:600;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+section.sheet h3{font-size:.95rem;margin:14px 0 6px;font-weight:600}
+.note{font-size:.82rem;color:var(--ink-soft);margin:6px 0 0}
+label.f{display:grid;grid-template-columns:1fr 128px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--rule)}
+label.f:last-child{border-bottom:0}
+label.f .lbl small{display:block;color:var(--ink-soft);font-size:.76rem;line-height:1.4}
+input,select{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--field-border);border-radius:4px;padding:6px 8px;width:100%;min-width:0}
+input[type=number]{text-align:right;font-variant-numeric:tabular-nums}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mode{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
+.mode label{display:flex;gap:6px;align-items:center;border:1px solid var(--field-border);border-radius:4px;padding:5px 10px;cursor:pointer;font-size:.88rem}
+.mode input{width:auto}
+.jobs{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{border-bottom:1px solid var(--rule);padding:6px 6px;text-align:left;vertical-align:middle}
+th{font-weight:600;color:var(--ink-soft);font-size:.78rem;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.jobs input,.jobs select{padding:5px 6px}
+.jobs td{min-width:76px}
+.jobs td:first-child{min-width:90px;font-weight:600}
+.total{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow:hidden;margin-bottom:6px}
+.total div{background:var(--sheet);padding:10px 12px}
+.total dt{font-size:.78rem;color:var(--ink-soft)}
+.total dd{margin:0;font-size:1.25rem;font-weight:600;font-variant-numeric:tabular-nums}
+.total div.main{grid-column:1/-1}
+.total div.main dd{font-size:1.9rem}
+.tag{display:inline-block;font-size:.7rem;line-height:1.5;padding:0 6px;border-radius:3px;white-space:nowrap;font-weight:600;vertical-align:1px}
+.tag.official{color:var(--t-official);background:var(--t-official-bg)}
+.tag.stat{color:var(--t-stat);background:var(--t-stat-bg)}
+.tag.input{color:var(--t-input);background:var(--t-input-bg)}
+.tag.assume{color:var(--t-assume);background:var(--t-assume-bg)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px;font-size:.8rem;color:var(--ink-soft);align-items:center}
+ol.evidence{margin:0;padding-left:1.4em}
+ol.evidence li{padding:6px 0;border-bottom:1px dashed var(--rule)}
+ol.evidence .v{font-weight:600;font-variant-numeric:tabular-nums}
+ol.evidence .how{display:block;font-size:.8rem;color:var(--ink-soft)}
+a{color:var(--t-official)}
+button{font:inherit;cursor:pointer;border-radius:4px;padding:7px 14px;border:1px solid var(--ink);background:var(--ink);color:var(--sheet)}
+button.ghost{background:transparent;color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+textarea{width:100%;min-height:220px;font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:.8rem;color:var(--ink);background:var(--field);border:1px solid var(--field-border);border-radius:4px;padding:8px}
+.sec ul{margin:6px 0 0;padding-left:1.2em}
+.sec li{margin:3px 0}
+.status{font-weight:600}
+.status.ok{color:var(--t-stat)}
+.status.ng{color:var(--seal)}
+details summary{cursor:pointer;font-weight:600}
+@media (max-width:520px){label.f{grid-template-columns:1fr 110px} header.top h1{font-size:1.3rem} .seal{width:76px;height:76px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div>
+    <h1 class="mincho">AIトークン予算 試算ツール</h1>
+    <p>自社の人数と給与を入れると、AI利用料の年間見積もりと経費計上の下書きを作ります。すべての数字に根拠と区分を表示します。</p>
+  </div>
+  <div class="seal pending mincho" id="seal" aria-live="polite"><b>確認中</b><span>通信遮断</span></div>
+</header>
+
+<div class="grid">
+<div class="inputs">
+
+<section class="sheet sec" aria-labelledby="h-sec">
+  <h2 id="h-sec">入力内容の取り扱い</h2>
+  <p style="margin:0">入力した数字はこの端末のブラウザの中だけで計算し、送信も保存もしません。</p>
+  <ul>
+    <li>通信の遮断：このページは、外部への通信・フォーム送信・外部画像の読み込みを禁止する設定（CSP）で動いています。状態：<span class="status" id="csp-status">確認中…</span></li>
+    <li>保存しない：ブラウザの保存領域（localStorage 等）を使いません。ページを閉じるか再読み込みすると入力は消えます。</li>
+    <li>会社名は入力不要：人数と給与だけで計算できます。人数は概数でかまいません。</li>
+    <li>リンクを共有しても、渡るのはツールだけで、入力内容は渡りません。他部署に結果を渡すときは、下の「部署間の共有」で暗号化した共有コードを使います。</li>
+    <li>ブラウザ拡張機能はページの内容を読める場合があります。会社での管理方法は「情報システム部門向け」を参照してください。</li>
+  </ul>
+  <div class="row" style="margin-top:10px"><button class="ghost" id="reset" type="button">入力をすべて初期値に戻す</button></div>
+</section>
+
+<section class="sheet" aria-labelledby="h-wage">
+  <h2 id="h-wage">1. 給与水準</h2>
+  <div class="mode" role="radiogroup" aria-label="給与の入力方法">
+    <label><input type="radio" name="wmode" value="direct" checked> 平均年間給与を入力（推奨）</label>
+    <label><input type="radio" name="wmode" value="stat"> 厚労省の統計から推計</label>
+  </div>
+  <div id="w-direct">
+    <label class="f"><span class="lbl">平均年間給与（万円）<small>有価証券報告書の「平均年間給与」など</small></span><input type="number" id="salary" min="0" step="1" value="600" inputmode="decimal" autocomplete="off"></label>
+  </div>
+  <div id="w-stat" hidden>
+    <label class="f"><span class="lbl">産業</span><select id="industry"></select></label>
+    <label class="f"><span class="lbl">企業規模</span><select id="size">
+      <option value="large">大企業（1,000人以上）</option>
+      <option value="mid">中企業（100〜999人）</option>
+      <option value="small">小企業（10〜99人）</option>
+    </select></label>
+    <label class="f"><span class="lbl">賞与（月数）<small>統計に賞与がないため仮置き</small></span><input type="number" id="bonus" min="0" step="0.1" value="4.0" autocomplete="off"></label>
+  </div>
+  <label class="f"><span class="lbl">会社負担の上乗せ率（%）<small>社会保険料など。給与だけと比べるなら0</small></span><input type="number" id="burden" min="0" step="1" value="0" autocomplete="off"></label>
+</section>
+
+<section class="sheet" aria-labelledby="h-jobs">
+  <h2 id="h-jobs">2. 職種別の人数と席</h2>
+  <div class="jobs">
+  <table>
+    <thead><tr><th>職種</th><th class="n">人数</th><th>席の種類</th><th class="n">付与率%</th></tr></thead>
+    <tbody id="jobrows"></tbody>
+  </table>
+  </div>
+  <p class="note">付与率は、その職種のうち席を持つ人の割合です。現場職は半数の初期値にしています。開発職には席に加えてAPI利用料がかかります（下の3で設定）。</p>
+</section>
+
+<section class="sheet" aria-labelledby="h-price">
+  <h2 id="h-price">3. 料金と為替</h2>
+  <div class="mode" role="radiogroup" aria-label="支払い方法">
+    <label><input type="radio" name="billing" value="monthly" checked> 月払い</label>
+    <label><input type="radio" name="billing" value="annual"> 年払い</label>
+  </div>
+  <label class="f"><span class="lbl">Standard席（ドル/人・月）</span><input type="number" id="pStd" min="0" step="1" value="25" autocomplete="off"></label>
+  <label class="f"><span class="lbl">Premium席（ドル/人・月）</span><input type="number" id="pPrem" min="0" step="1" value="125" autocomplete="off"></label>
+  <label class="f"><span class="lbl">為替（円/ドル）</span><input type="number" id="fx" min="1" step="1" value="150" autocomplete="off"></label>
+  <h3>開発職のAPI利用</h3>
+  <label class="f"><span class="lbl">1時間のコーディング作業の費用（ドル）<small>公式料金表の例（Opus 5.5）</small></span><input type="number" id="apiHour" min="0" step="0.01" value="0.58" autocomplete="off"></label>
+  <label class="f"><span class="lbl">1日の利用時間</span><input type="number" id="apiHours" min="0" step="0.5" value="4" autocomplete="off"></label>
+  <label class="f"><span class="lbl">月の稼働日数</span><input type="number" id="days" min="0" step="1" value="20" autocomplete="off"></label>
+  <label class="f"><span class="lbl">その他のAPI利用（全社・ドル/月）<small>業務システムへの組み込みなど</small></span><input type="number" id="apiOther" min="0" step="1" value="0" autocomplete="off"></label>
+</section>
+
+<section class="sheet" aria-labelledby="h-ops">
+  <h2 id="h-ops">4. 導入運用費</h2>
+  <label class="f"><span class="lbl">研修費（円/人・年）<small>席を持つ人が対象</small></span><input type="number" id="train" min="0" step="1000" value="0" autocomplete="off"></label>
+  <label class="f"><span class="lbl">管理・運用の外部委託費（円/月）</span><input type="number" id="opsFee" min="0" step="1000" value="0" autocomplete="off"></label>
+</section>
+
+<section class="sheet" aria-labelledby="h-eff">
+  <h2 id="h-eff">5. 効果の見込み</h2>
+  <div class="jobs">
+  <table>
+    <thead><tr><th>職種</th><th class="n">対象業務 時間/月</th><th class="n">削減率%</th></tr></thead>
+    <tbody id="effrows"></tbody>
+  </table>
+  </div>
+  <label class="f"><span class="lbl">月の所定労働時間</span><input type="number" id="hoursMonth" min="1" step="1" value="160" autocomplete="off"></label>
+  <p class="note">対象業務は、日報・報告書・メール・資料作成などAIを使う予定の業務の時間です。削減率は導入前後の実測で置き換えてください。</p>
+</section>
+
+</div>
+
+<div class="results">
+<section class="sheet" aria-labelledby="h-res">
+  <h2 id="h-res">試算結果</h2>
+  <dl class="total">
+    <div class="main"><dt>AI利用料（年額）</dt><dd id="r-cost">—</dd></div>
+    <div><dt>人件費比</dt><dd id="r-ratio">—</dd></div>
+    <div><dt>1人あたり（年額）</dt><dd id="r-per">—</dd></div>
+    <div><dt>効果（年額）</dt><dd id="r-ben">—</dd></div>
+    <div><dt>ROI</dt><dd id="r-roi">—</dd></div>
+  </dl>
+  <p class="note" id="r-msg"></p>
+  <h3>職種別の内訳</h3>
+  <div class="jobs"><table>
+    <thead><tr><th>職種</th><th class="n">席数</th><th>席</th><th class="n">月額</th><th class="n">年額</th></tr></thead>
+    <tbody id="breakdown"></tbody>
+  </table></div>
+</section>
+
+<section class="sheet" aria-labelledby="h-acct">
+  <h2 id="h-acct">経費計上の下書き</h2>
+  <div class="jobs"><table>
+    <thead><tr><th>勘定科目（案）</th><th>内容</th><th class="n">月額</th><th class="n">年額</th></tr></thead>
+    <tbody id="acct"></tbody>
+  </table></div>
+  <p class="note">勘定科目は一般的な例です。海外事業者への支払いにかかる消費税の扱いや科目は会計方針によるため、経理担当・税理士に確認してください。ドル建てのため、為替で実額が変わります。</p>
+</section>
+
+<section class="sheet" aria-labelledby="h-ev">
+  <h2 id="h-ev">根拠</h2>
+  <div class="legend">区分：
+    <span class="tag official">公式価格</span>
+    <span class="tag stat">公的統計</span>
+    <span class="tag input">入力値</span>
+    <span class="tag assume">仮置き</span>
+  </div>
+  <ol class="evidence" id="evidence"></ol>
+</section>
+
+<section class="sheet" aria-labelledby="h-out">
+  <h2 id="h-out">テキストで書き出す</h2>
+  <p class="note" style="margin-top:0">稟議書や社内資料に貼り付けるための文面です。コピーはこの端末のクリップボードに入るだけで、外部には送られません。</p>
+  <textarea id="out" readonly aria-label="書き出し用テキスト"></textarea>
+  <div class="row" style="margin-top:8px"><button id="copy" type="button">文面をコピー</button><span class="note" id="copy-msg" style="margin:0"></span></div>
+</section>
+
+<section class="sheet" aria-labelledby="h-share">
+  <h2 id="h-share">部署間の共有</h2>
+  <p class="note" style="margin-top:0">結果を暗号化した「共有コード」にして、メールやチャットで渡します。受け取った人はこのツールにコードと合言葉を入れると、同じ入力と確認状況を再現できます。サーバーには何も保存しません。</p>
+  <h3>部署ごとの確認</h3>
+  <label class="f"><span class="lbl">確認する部署</span><select id="dept"></select></label>
+  <div id="dept-items" style="margin-top:6px"></div>
+  <label class="f" style="grid-template-columns:1fr"><span class="lbl">コメント<small>修正してほしい点や確認結果</small></span><textarea id="dept-comment" style="min-height:70px;font-family:inherit;font-size:.86rem" aria-label="部署のコメント"></textarea></label>
+  <div id="dept-summary" class="note"></div>
+
+  <h3>共有コードを作る</h3>
+  <label class="f"><span class="lbl">合言葉（8文字以上）<small>コードとは別の手段（電話・別のチャット）で伝える</small></span><input type="password" id="pass-out" autocomplete="new-password" minlength="8"></label>
+  <div class="row" style="margin:8px 0"><button type="button" id="make-code">共有コードを作る</button><span class="note" id="make-msg" style="margin:0"></span></div>
+  <textarea id="code-out" readonly style="min-height:90px" aria-label="作成した共有コード"></textarea>
+  <div class="row" style="margin-top:6px"><button type="button" class="ghost" id="copy-code">コードをコピー</button></div>
+
+  <h3>共有コードを読み込む</h3>
+  <textarea id="code-in" style="min-height:90px" aria-label="受け取った共有コード" placeholder="AITB1. で始まるコードを貼り付け"></textarea>
+  <label class="f"><span class="lbl">合言葉</span><input type="password" id="pass-in" autocomplete="off"></label>
+  <div class="row" style="margin-top:8px"><button type="button" id="load-code">読み込む</button><span class="note" id="load-msg" style="margin:0"></span></div>
+  <p class="note">暗号化：AES-GCM（256ビット）、鍵は合言葉からPBKDF2（SHA-256・31万回）で作成。処理はすべてこの端末のブラウザ内で行います。</p>
+</section>
+
+<section class="sheet sec" aria-labelledby="h-it">
+  <h2 id="h-it">情報システム部門向け</h2>
+  <h3>この端末での動作環境</h3>
+  <ul id="env"></ul>
+  <p class="note">インストール済みの拡張機能は、ページの側からは確認できません。拡張機能の制御はブラウザの管理設定で行います。</p>
+  <h3>おすすめの配布方法</h3>
+  <ul>
+    <li>ファイルで配る：このページは1つのHTMLファイルで完結し、オフラインでも動きます。Chrome・Edgeの拡張機能は、利用者が個別に許可しない限りローカルファイル（file://）を読めません。</li>
+    <li>社内サーバーに置く：配布するファイルの冒頭にある「社内設定」を書き換えると、料金・為替・勘定科目・共有先部署を全社でそろえられます。</li>
+  </ul>
+  <h3>ブラウザの管理設定（Chrome・Edge共通の ExtensionSettings ポリシー）</h3>
+  <ul>
+    <li>拡張機能を許可制にする：すべてを既定でブロックし、承認したものだけ許可する。</li>
+    <li>このツールを置くサイトで拡張機能を動かさない：runtime_blocked_hosts に配布先のホストを登録する。</li>
+    <li>シークレットウィンドウでの利用も、拡張機能の多くが既定で無効になるため、一時的な対策になる。</li>
+  </ul>
+  <p class="note">現在の社内設定：<span id="cfg-name"></span></p>
+</section>
+
+<section class="sheet" aria-labelledby="h-src">
+  <h2 id="h-src">出典</h2>
+  <ul style="margin:0;padding-left:1.2em;font-size:.86rem">
+    <li><a href="https://claude.com/pricing" rel="noopener noreferrer" target="_blank">Claude 料金ページ（Team プラン）</a>2026年10月確認</li>
+    <li><a href="https://platform.claude.com/docs/en/about-claude/pricing" rel="noopener noreferrer" target="_blank">Anthropic API 公式料金表</a>2026年10月確認</li>
+    <li>厚生労働省「令和7年賃金構造基本統計調査 結果の概況」第1表・第4表・第5-1表</li>
+  </ul>
+</section>
+</div>
+</div>
+</div>
+
+<script>
+/* ===== 社内設定（情報システム部門・経理部門が編集する箇所） =====
+   社内サーバーやファイルで配布する場合、ここだけを書き換えれば
+   全社の初期値・勘定科目・共有先部署・社内ルールをそろえられます。 */
+window.AITB_CONFIG = {
+  configName: "初期設定（Anthropic公開価格・2026年10月）",
+  defaults: { pStd: 25, pPrem: 125, fx: 150, apiHour: 0.58, apiHours: 4, days: 20, hoursMonth: 160 },
+  annualPrices: { pStd: 20, pPrem: 100 },
+  accounts: { seat: "支払手数料（またはソフトウェア利用料）", api: "支払手数料（またはソフトウェア利用料）", training: "研修費", ops: "業務委託費" },
+  departments: [
+    { id: "acct", name: "経理・財務", items: ["勘定科目と計上部門", "海外事業者への支払いにかかる消費税の扱い", "予算に使う為替レート", "月払い・年払いの選択（年払いなら前払費用の処理）"] },
+    { id: "it", name: "情報システム", items: ["利用するAIサービスの契約形態とデータの取り扱い", "アカウント管理（SSO・退職時の停止）", "端末とブラウザ拡張機能の制限", "このツールの配布方法（社内サーバーかファイルか）"] },
+    { id: "mgmt", name: "経営企画・経営層", items: ["削減率など効果の前提", "人件費比の水準", "パイロットの対象範囲と期間"] },
+    { id: "hr", name: "人事", items: ["職種区分と人数", "研修計画と費用", "利用ルール（機密情報の入力禁止など）の周知"] }
+  ],
+  policyNote: "社内ルール：機密情報（顧客名・個人情報）はAIサービスに入力しない。"
+};
+</script>
+<script>
+(function(){
+"use strict";
+const MHLW_ALL = 340.6;
+const SIZE = {large:{w:385.1,label:"大企業",bonus:4.0}, mid:{w:326.2,label:"中企業",bonus:2.5}, small:{w:305.6,label:"小企業",bonus:2.5}};
+const IND = [
+ ["鉱業，採石業，砂利採取業",388.3],["建設業",366.3],["製造業",330.0],["電気・ガス・熱供給・水道業",444.0],
+ ["情報通信業",406.0],["運輸業，郵便業",312.7],["卸売業，小売業",349.1],["金融業，保険業",437.0],
+ ["不動産業，物品賃貸業",360.1],["学術研究，専門・技術サービス業",440.3],["宿泊業，飲食サービス業",277.2],
+ ["生活関連サービス業，娯楽業",295.2],["教育，学習支援業",379.4],["医療，福祉",315.7],
+ ["複合サービス事業",319.0],["サービス業（他に分類されないもの）",284.9]
+];
+const JOBS = [
+ {id:"field", name:"現場職", n:80, seat:"std", cov:50, api:false, h:24, s:30},
+ {id:"office",name:"事務・営業", n:60, seat:"std", cov:100, api:false, h:64, s:30},
+ {id:"plan",  name:"企画・分析・研究", n:20, seat:"prem", cov:100, api:false, h:40, s:30},
+ {id:"dev",   name:"開発", n:10, seat:"prem", cov:100, api:true, h:40, s:30}
+];
+const $ = id => document.getElementById(id);
+const CFG = window.AITB_CONFIG || {};
+const ACC = Object.assign({seat:"支払手数料",api:"支払手数料",training:"研修費",ops:"業務委託費"}, CFG.accounts||{});
+const ANNUAL = Object.assign({pStd:20,pPrem:100}, CFG.annualPrices||{});
+const MONTHLY = {pStd:(CFG.defaults||{}).pStd??25, pPrem:(CFG.defaults||{}).pPrem??125};
+Object.entries(CFG.defaults||{}).forEach(([k,v])=>{ const el=document.getElementById(k); if(el){ el.value=v; el.defaultValue=String(v);} });
+const yen = v => (Math.round(v)).toLocaleString("ja-JP") + "円";
+const man = v => {
+  const a = Math.abs(v);
+  if (a >= 1e8) return (v/1e8).toLocaleString("ja-JP",{maximumFractionDigits:2}) + "億円";
+  if (a >= 1e4) return (v/1e4).toLocaleString("ja-JP",{maximumFractionDigits:1}) + "万円";
+  return yen(v);
+};
+const pct = v => isFinite(v) ? v.toLocaleString("ja-JP",{maximumFractionDigits:2}) + "%" : "—";
+const num = id => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : 0; };
+
+// build selects and rows
+const indSel = $("industry");
+IND.forEach((r,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=r[0]+"（"+r[1].toFixed(1)+"千円）"; indSel.appendChild(o); });
+indSel.value = "2";
+
+const jobBody = $("jobrows"), effBody = $("effrows");
+function buildRows(){
+  jobBody.textContent=""; effBody.textContent="";
+  JOBS.forEach(j=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML = '<td>'+j.name+'</td>'+
+      '<td class="n"><input type="number" min="0" step="1" id="n-'+j.id+'" value="'+j.n+'" aria-label="'+j.name+'の人数" autocomplete="off"></td>'+
+      '<td><select id="seat-'+j.id+'" aria-label="'+j.name+'の席"><option value="none">なし</option><option value="std">Standard</option><option value="prem">Premium</option></select></td>'+
+      '<td class="n"><input type="number" min="0" max="100" step="5" id="cov-'+j.id+'" value="'+j.cov+'" aria-label="'+j.name+'の付与率" autocomplete="off"></td>';
+    jobBody.appendChild(tr);
+    tr.querySelector("select").value=j.seat;
+    const te=document.createElement("tr");
+    te.innerHTML='<td>'+j.name+'</td>'+
+      '<td class="n"><input type="number" min="0" step="1" id="h-'+j.id+'" value="'+j.h+'" aria-label="'+j.name+'の対象業務時間" autocomplete="off"></td>'+
+      '<td class="n"><input type="number" min="0" max="100" step="5" id="s-'+j.id+'" value="'+j.s+'" aria-label="'+j.name+'の削減率" autocomplete="off"></td>';
+    effBody.appendChild(te);
+  });
+}
+buildRows();
+
+let bonusTouched=false;
+$("bonus").addEventListener("input",()=>{bonusTouched=true;});
+$("size").addEventListener("change",()=>{ if(!bonusTouched){ $("bonus").value=SIZE[$("size").value].bonus.toFixed(1);} });
+
+function mode(name){ return document.querySelector('input[name="'+name+'"]:checked').value; }
+document.querySelectorAll('input[name="wmode"]').forEach(r=>r.addEventListener("change",()=>{
+  const st = mode("wmode")==="stat"; $("w-stat").hidden=!st; $("w-direct").hidden=st; calc();
+}));
+document.querySelectorAll('input[name="billing"]').forEach(r=>r.addEventListener("change",()=>{
+  const an = mode("billing")==="annual";
+  $("pStd").value = an ? ANNUAL.pStd : MONTHLY.pStd; $("pPrem").value = an ? ANNUAL.pPrem : MONTHLY.pPrem; calc();
+}));
+
+const tag = k => ({official:'<span class="tag official">公式価格</span>',stat:'<span class="tag stat">公的統計</span>',input:'<span class="tag input">入力値</span>',assume:'<span class="tag assume">仮置き</span>'})[k];
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);}
+
+function calc(){
+  const fx=num("fx"), burden=num("burden")/100, billing=mode("billing");
+  const pStd=num("pStd"), pPrem=num("pPrem");
+  const wm=mode("wmode");
+  let salary, salaryEv;
+  if(wm==="direct"){
+    salary=num("salary")*1e4;
+    salaryEv=[tag("input"),"平均年間給与",man(salary),"入力値をそのまま使用"];
+  }else{
+    const ind=IND[+indSel.value], sz=SIZE[$("size").value], b=num("bonus");
+    const monthly=ind[1]*(sz.w/MHLW_ALL)*1000;
+    salary=monthly*(12+b);
+    salaryEv=null;
+    var statEv=[
+      [tag("stat"),"産業の月額賃金（"+ind[0]+"）",ind[1].toFixed(1)+"千円","賃金構造基本統計調査 第5-1表（男女計・年齢計、所定内給与）"],
+      [tag("stat"),"規模の補正係数（"+sz.label+"）",(sz.w/MHLW_ALL).toFixed(3),sz.w+"千円 ÷ 全体"+MHLW_ALL+"千円（第4表・第1表）。全産業の値を一律に適用"],
+      [tag("assume"),"賞与",b.toFixed(1)+"か月","統計に賞与がないため仮置き"],
+      [tag("stat"),"推計した平均年間給与",man(salary),"月額 "+yen(monthly)+" ×（12＋"+b.toFixed(1)+"）"]
+    ];
+  }
+  const labor = salary*(1+burden);
+  const apiDevMonthly = num("apiHour")*num("apiHours")*num("days")*fx;
+  const apiOtherMonthly = num("apiOther")*fx;
+  const hoursMonth=num("hoursMonth")||160;
+  const hourly = labor/(12*hoursMonth);
+
+  let headcount=0, seatsTotal=0, seatMonthly=0, apiMonthly=apiOtherMonthly, benefit=0, nStd=0, nPrem=0, nDevApi=0;
+  const rows=[];
+  JOBS.forEach(j=>{
+    const n=num("n-"+j.id), seat=$("seat-"+j.id).value, cov=Math.min(num("cov-"+j.id),100)/100;
+    const seats = seat==="none" ? 0 : Math.round(n*cov);
+    const unit = seat==="std" ? pStd*fx : seat==="prem" ? pPrem*fx : 0;
+    let m = seats*unit;
+    if(seat==="std") nStd+=seats; if(seat==="prem") nPrem+=seats;
+    let apiM=0;
+    if(j.api && n>0){ apiM = n*apiDevMonthly; nDevApi+=n; apiMonthly+=apiM; }
+    seatMonthly += seats*unit;
+    headcount+=n; seatsTotal+=seats;
+    const h=num("h-"+j.id), s=Math.min(num("s-"+j.id),100)/100;
+    benefit += n*h*s*hourly*12;
+    rows.push({j,n,seat,seats,unit,m:m+apiM,apiM});
+  });
+  const trainY = num("train")*seatsTotal;
+  const opsY = num("opsFee")*12;
+  const aiY = (seatMonthly+apiMonthly)*12;
+  const opsTotal = trainY+opsY;
+  const laborTotal = labor*headcount;
+  const ratio = laborTotal>0 ? aiY/laborTotal*100 : NaN;
+  const per = headcount>0 ? aiY/headcount : 0;
+  const denom = aiY+opsTotal;
+  const roi = denom>0 ? (benefit-denom)/denom*100 : NaN;
+
+  $("r-cost").textContent=man(aiY);
+  $("r-ratio").textContent=pct(ratio);
+  $("r-per").textContent=man(per);
+  $("r-ben").textContent=man(benefit);
+  $("r-roi").textContent=isFinite(roi)? pct(roi):"—";
+  $("r-msg").textContent = headcount===0 ? "人数を入力すると計算します。" :
+    "従業員"+headcount.toLocaleString("ja-JP")+"人のうち、席を持つのは"+seatsTotal.toLocaleString("ja-JP")+"人です。研修・運用費 "+man(opsTotal)+"/年はROIに含め、AI利用料と人件費比には含めていません。";
+
+  const sName={none:"なし",std:"Standard",prem:"Premium"};
+  $("breakdown").innerHTML = rows.map(r=>'<tr><td>'+r.j.name+'</td><td class="n">'+r.seats.toLocaleString("ja-JP")+'</td><td>'+sName[r.seat]+(r.apiM?'＋API':'')+'</td><td class="n">'+yen(r.m)+'</td><td class="n">'+yen(r.m*12)+'</td></tr>').join("") +
+    (apiOtherMonthly? '<tr><td>全社</td><td class="n">—</td><td>その他API</td><td class="n">'+yen(apiOtherMonthly)+'</td><td class="n">'+yen(apiOtherMonthly*12)+'</td></tr>':'') +
+    '<tr><td><b>合計</b></td><td class="n"><b>'+seatsTotal.toLocaleString("ja-JP")+'</b></td><td></td><td class="n"><b>'+yen(seatMonthly+apiMonthly)+'</b></td><td class="n"><b>'+yen(aiY)+'</b></td></tr>';
+
+  const acct=[
+    [ACC.seat,"AIサービス利用料（席："+(nStd+nPrem)+"人分、"+(billing==="annual"?"年払い":"月払い")+"）",seatMonthly],
+    [ACC.api,"API利用料（従量課金）",apiMonthly],
+    [ACC.training,"AI活用研修（"+seatsTotal+"人分）",trainY/12],
+    [ACC.ops,"AI管理・運用の外部委託",opsY/12]
+  ].filter(a=>a[2]>0);
+  $("acct").innerHTML = acct.map(a=>'<tr><td>'+a[0]+'</td><td>'+a[1]+'</td><td class="n">'+yen(a[2])+'</td><td class="n">'+yen(a[2]*12)+'</td></tr>').join("") +
+    '<tr><td><b>合計</b></td><td></td><td class="n"><b>'+yen((aiY+opsTotal)/12)+'</b></td><td class="n"><b>'+yen(aiY+opsTotal)+'</b></td></tr>';
+
+  const ev=[];
+  if(salaryEv) ev.push(salaryEv); else ev.push(...statEv);
+  ev.push([burden>0?tag("input"):tag("assume"),"会社負担の上乗せ率",(burden*100).toFixed(0)+"%",burden>0?"入力値":"0%（給与のみと比較）"]);
+  ev.push([tag("official"),"Standard席",pStd+"ドル/人・月（"+yen(pStd*fx)+"）","Claude 料金ページ（Team、"+(billing==="annual"?"年払い$20":"月払い$25")+"）。入力で変更可"]);
+  ev.push([tag("official"),"Premium席",pPrem+"ドル/人・月（"+yen(pPrem*fx)+"）","Claude 料金ページ（Team、"+(billing==="annual"?"年払い$100":"月払い$125")+"）。Standardの5倍の利用量"]);
+  ev.push([tag("assume"),"為替",fx+"円/ドル","仮置き。予算時点のレートに置き換える"]);
+  ev.push([tag("official"),"開発職のAPI利用料（1人・月）",yen(apiDevMonthly),"公式料金表の1時間作業例 $"+num("apiHour")+" × "+num("apiHours")+"時間 × "+num("days")+"日 × "+fx+"円"]);
+  ev.push([tag("assume"),"現場職の席付与率",num("cov-field")+"%","日報などの利用ではトークン代が月100円未満のため、全員に席は不要と仮定"]);
+  ev.push([tag("input"),"職種別の人数",headcount.toLocaleString("ja-JP")+"人","入力値"]);
+  ev.push([tag("assume"),"時間あたり人件費",yen(hourly),"人件費 ÷（12か月 × "+hoursMonth+"時間）"]);
+  ev.push([tag("assume"),"効果",man(benefit)+"/年","Σ 人数 × 対象業務時間 × 削減率 × 時間あたり人件費 × 12。削減率は実測で置き換える"]);
+  ev.push([tag("input"),"人件費比",pct(ratio),"AI利用料 "+man(aiY)+" ÷ 人件費総額 "+man(laborTotal)]);
+  ev.push([tag("input"),"ROI",isFinite(roi)?pct(roi):"—","（効果 − AI利用料 − 研修・運用費）÷（AI利用料 ＋ 研修・運用費）"]);
+  $("evidence").innerHTML = ev.map(e=>'<li>'+e[0]+' '+esc(e[1])+'：<span class="v">'+esc(e[2])+'</span><span class="how">'+esc(e[3])+'</span></li>').join("");
+
+  const plain = s => s.replace(/<[^>]+>/g,"");
+  const lines=[];
+  lines.push("【AIトークン予算 試算（ドラフト）】");
+  lines.push("AI利用料（年額）："+yen(aiY)+"（月額 "+yen(aiY/12)+"）");
+  lines.push("人件費比："+pct(ratio)+" ／ 1人あたり年額："+yen(per));
+  lines.push("効果（年額）："+yen(benefit)+" ／ ROI："+(isFinite(roi)?pct(roi):"—"));
+  lines.push("");
+  lines.push("■ 経費計上の下書き");
+  acct.forEach(a=>lines.push("・"+a[0]+"："+a[1]+" 年額 "+yen(a[2]*12)));
+  lines.push("");
+  lines.push("■ 職種別内訳");
+  rows.forEach(r=>lines.push("・"+r.j.name+"："+r.n+"人、席"+r.seats+"（"+sName[r.seat]+(r.apiM?"＋API":"")+"）、年額 "+yen(r.m*12)));
+  lines.push("");
+  lines.push("■ 根拠");
+  ev.forEach(e=>lines.push("・["+plain(e[0])+"] "+e[1]+"："+e[2]+"（"+e[3]+"）"));
+  lines.push("");
+  const rv=reviewLines(); if(rv.length){ lines.push("■ 部署ごとの確認状況"); rv.forEach(l=>lines.push(l)); lines.push(""); }
+  if(CFG.policyNote) { lines.push(CFG.policyNote); }
+  lines.push("出典：Claude 料金ページ（2026年10月確認）、Anthropic API 公式料金表、厚生労働省 令和7年賃金構造基本統計調査");
+  lines.push("注：勘定科目・消費税の扱いは会計方針により異なる。仮置きの数値はパイロットの実測で置き換えること。");
+  $("out").value = lines.join("\n");
+}
+
+document.querySelector(".inputs").addEventListener("input",calc);
+document.querySelector(".inputs").addEventListener("change",calc);
+
+$("reset").addEventListener("click",()=>{
+  document.querySelectorAll(".inputs input[type=number]").forEach(i=>{ i.value=i.defaultValue; });
+  document.querySelector('input[name="wmode"][value="direct"]').checked=true;
+  document.querySelector('input[name="billing"][value="monthly"]').checked=true;
+  $("w-stat").hidden=true; $("w-direct").hidden=false;
+  indSel.value="2"; $("size").value="large"; bonusTouched=false;
+  buildRows(); calc();
+});
+
+$("copy").addEventListener("click",async()=>{
+  const t=$("out");
+  try{ await navigator.clipboard.writeText(t.value); $("copy-msg").textContent="コピーしました。"; }
+  catch(e){ t.focus(); t.select(); $("copy-msg").textContent="自動コピーできない環境です。選択済みの文面を手動でコピーしてください。"; }
+});
+
+// security self-check: CSP should block any network connection
+(function(){
+  let done=false;
+  const ok=()=>{ if(done) return; done=true;
+    $("csp-status").textContent="遮断を確認しました"; $("csp-status").className="status ok";
+    const s=$("seal"); s.classList.remove("pending"); s.innerHTML="<b>送信なし</b><span>通信遮断済</span>"; };
+  const ng=()=>{ if(done) return; done=true;
+    $("csp-status").textContent="遮断を確認できませんでした。機微な数字の入力は控えてください"; $("csp-status").className="status ng";
+    $("seal").innerHTML="<b>未確認</b><span>通信遮断</span>"; };
+  document.addEventListener("securitypolicyviolation",e=>{ if(/connect-src/.test(e.effectiveDirective||e.violatedDirective||"")) ok(); });
+  try{
+    fetch("https://csp-check.invalid/",{method:"HEAD",cache:"no-store",credentials:"omit"})
+      .then(()=>ng())
+      .catch(()=>{ setTimeout(()=>{ if(!done) ng(); },800); });
+  }catch(e){ ok(); }
+})();
+
+// ===== 部署ごとの確認 =====
+const DEPTS = CFG.departments || [];
+const reviews = {}; // {deptId:{checks:[bool], comment:""}}
+DEPTS.forEach(d=>{ reviews[d.id]={checks:d.items.map(()=>false), comment:""}; });
+const deptSel=$("dept");
+DEPTS.forEach(d=>{ const o=document.createElement("option"); o.value=d.id; o.textContent=d.name; deptSel.appendChild(o); });
+function renderDept(){
+  const d=DEPTS.find(x=>x.id===deptSel.value); const box=$("dept-items"); box.textContent="";
+  if(!d) return;
+  d.items.forEach((it,i)=>{
+    const l=document.createElement("label"); l.style.cssText="display:flex;gap:8px;align-items:flex-start;padding:4px 0";
+    const c=document.createElement("input"); c.type="checkbox"; c.style.width="auto"; c.style.marginTop="6px"; c.checked=reviews[d.id].checks[i];
+    c.addEventListener("change",()=>{ reviews[d.id].checks[i]=c.checked; renderSummary(); calc(); });
+    const t=document.createElement("span"); t.textContent=it;
+    l.appendChild(c); l.appendChild(t); box.appendChild(l);
+  });
+  $("dept-comment").value=reviews[d.id].comment;
+  renderSummary();
+}
+function renderSummary(){
+  $("dept-summary").textContent = DEPTS.map(d=>{ const r=reviews[d.id]; const n=r.checks.filter(Boolean).length; return d.name+" "+n+"/"+r.checks.length; }).join("　");
+}
+function reviewLines(){
+  const out=[];
+  DEPTS.forEach(d=>{ const r=reviews[d.id]; if(!r) return; const n=r.checks.filter(Boolean).length;
+    if(n===0 && !r.comment) return;
+    out.push("・"+d.name+"："+n+"/"+r.checks.length+"項目確認済"+(r.comment?"（コメント："+r.comment.replace(/\s+/g," ")+"）":""));
+    d.items.forEach((it,i)=>{ if(!r.checks[i]) out.push("　未確認："+it); });
+  });
+  return out;
+}
+deptSel.addEventListener("change",renderDept);
+$("dept-comment").addEventListener("input",e=>{ reviews[deptSel.value].comment=e.target.value; calc(); });
+renderDept();
+
+// ===== 共有コード（AES-GCM） =====
+function collectState(){
+  const v={};
+  document.querySelectorAll(".inputs input[id], .inputs select[id]").forEach(el=>{ v[el.id]=el.value; });
+  return {ver:1, cfg:CFG.configName||"", created:new Date().toISOString().slice(0,10), wmode:mode("wmode"), billing:mode("billing"), bonusTouched, values:v, reviews};
+}
+function applyState(st){
+  document.querySelector('input[name="wmode"][value="'+(st.wmode==="stat"?"stat":"direct")+'"]').checked=true;
+  document.querySelector('input[name="billing"][value="'+(st.billing==="annual"?"annual":"monthly")+'"]').checked=true;
+  const isStat=st.wmode==="stat"; $("w-stat").hidden=!isStat; $("w-direct").hidden=isStat;
+  Object.entries(st.values||{}).forEach(([k,val])=>{ const el=document.getElementById(k); if(el && el.closest(".inputs")) el.value=String(val); });
+  bonusTouched=!!st.bonusTouched;
+  Object.entries(st.reviews||{}).forEach(([k,r])=>{ if(reviews[k] && Array.isArray(r.checks)){ reviews[k].checks=reviews[k].checks.map((_,i)=>!!r.checks[i]); reviews[k].comment=String(r.comment||"").slice(0,2000); } });
+  renderDept(); calc();
+}
+const b64 = u8 => { let s=""; u8.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+async function deriveKey(pass,salt){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+$("make-code").addEventListener("click",async()=>{
+  const pass=$("pass-out").value;
+  if(pass.length<8){ $("make-msg").textContent="合言葉を8文字以上で入れてください。"; return; }
+  if(!window.crypto || !crypto.subtle){ $("make-msg").textContent="このブラウザでは暗号化を使えません。"; return; }
+  try{
+    const salt=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12));
+    const key=await deriveKey(pass,salt);
+    const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(collectState()))));
+    const all=new Uint8Array(salt.length+iv.length+ct.length); all.set(salt,0); all.set(iv,16); all.set(ct,28);
+    $("code-out").value="AITB1."+b64(all);
+    $("pass-out").value="";
+    $("make-msg").textContent="作成しました。合言葉は別の手段で伝えてください。";
+  }catch(e){ $("make-msg").textContent="作成できませんでした。"; }
+});
+$("copy-code").addEventListener("click",async()=>{
+  const t=$("code-out"); if(!t.value) return;
+  try{ await navigator.clipboard.writeText(t.value); $("make-msg").textContent="コードをコピーしました。"; }
+  catch(e){ t.focus(); t.select(); $("make-msg").textContent="選択済みのコードを手動でコピーしてください。"; }
+});
+$("load-code").addEventListener("click",async()=>{
+  const raw=$("code-in").value.trim(), pass=$("pass-in").value;
+  if(!raw.startsWith("AITB1.")){ $("load-msg").textContent="AITB1. で始まるコードを貼り付けてください。"; return; }
+  try{
+    const all=unb64(raw.slice(6).replace(/\s+/g,""));
+    const key=await deriveKey(pass,all.slice(0,16));
+    const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:all.slice(16,28)},key,all.slice(28));
+    const st=JSON.parse(new TextDecoder().decode(pt));
+    applyState(st);
+    $("pass-in").value=""; $("code-in").value="";
+    $("load-msg").textContent="読み込みました（作成日 "+String(st.created||"")+"）。"+(st.cfg && st.cfg!==CFG.configName?"作成時と社内設定が異なります："+st.cfg:"");
+  }catch(e){ $("load-msg").textContent="読み込めませんでした。合言葉かコードが違います。"; }
+});
+
+// ===== 動作環境 =====
+(function(){
+  const env=$("env"); const add=(ok,t)=>{ const li=document.createElement("li"); li.innerHTML='<span class="status '+(ok?'ok':'ng')+'">'+(ok?'OK':'注意')+'</span>　'+t; env.appendChild(li); };
+  add(window.isSecureContext, window.isSecureContext?"安全な接続（HTTPS またはローカルファイル）で開いています。":"安全でない接続で開いています。共有コードの暗号化が使えません。");
+  add(!!(window.crypto&&crypto.subtle), (window.crypto&&crypto.subtle)?"暗号化機能（Web Crypto）を使えます。":"暗号化機能を使えません。");
+  const file=location.protocol==="file:";
+  add(true, file?"ローカルファイルとして開いています。拡張機能は既定で読み取れません。":"Webページとして開いています。拡張機能の管理設定を確認してください。");
+  $("cfg-name").textContent=CFG.configName||"なし";
+})();
+
+calc();
+})();
+</script>
+</body>
+</html>
